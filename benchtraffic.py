@@ -1,87 +1,96 @@
-from pyroute2 import IPRoute
-from ryu.lib.ovs import vsctl
+import argparse
+import numpy as np
 from scapy.all import *
 from scapy.layers.inet import IP
 from scapy.layers.l2 import Ether
 
 
-def create_pair(ifname, peer, mtu=9000):
-    with IPRoute() as ipr:
-        ipr.link("add", ifname=ifname, kind="veth", peer=peer)
-
-        ifnet = ipr.link_lookup(ifname=ifname)[0]
-        ifpeer = ipr.link_lookup(ifname=peer)[0]
-
-        ipr.link("set", index=ifnet, mtu=mtu)
-        ipr.link("set", index=ifnet, state="up")
-        ipr.link("set", index=ifpeer, mtu=mtu)
-        ipr.link("set", index=ifpeer, state="up")
+def send_pkt_thg(count, port_in):
+    pkt = []
+    for _ in range(0, int(count) + 500):
+        p = Ether(src=RandMAC(), dst=RandMAC()) / IP(dst=RandIP(), src=RandIP())
+        pkt.append(p)
+    sendp(pkt, iface=port_in, verbose=False)
 
 
-def exist_interface(name):
-    with IPRoute() as ipr:
-        ifname = ipr.link_lookup(ifname=name)[0]
-        return ifname
+def send_pkt_lcy(count, port_in):
+    for _ in range(0, int(count)):
+        p = Ether(src=RandMAC(), dst=RandMAC()) / IP(dst=RandIP(), src=RandIP()) / Raw(load=str(time.time()))
+        sendp(p, iface=port_in,verbose=False)
 
 
-def ovs_command(addr, cmd, values):
-    ovs = vsctl.VSCtl(addr)
-    cmd = vsctl.VSCtlCommand(cmd, values)
-    ovs.run_command(cmd)
-
-    return cmd.result[0]
-
-
-def add_port(addr, bridge, port, ofport):
-    def add():
-        ret = ovs_command(addr, "add-port", [bridge, port])
-        if ret is not None:
-            raise RuntimeError(ret)
-
-    def config():
-        ret = ovs_command(addr, "set", ["Interface", port, "ofport={}".format(ofport)])
-        if ret is not None:
-            raise RuntimeError(ret)
-    try:
-        add()
-        config()
-    except Exception as ex:
-        raise RuntimeError(str(ex))
+def recv_pkt_thg(q, count, port_out):
+    time_thg = []
+    n = sniff(iface=port_out, prn=lambda x: time_thg.append(time.time()), count=int(count))
+    print(n)
+    pkts = len(time_thg)
+    elapsed = time_thg[pkts - 1] - time_thg[0]
+    thg = pkts / elapsed
+    q.append(thg)
 
 
-def rem_port(addr, bridge, port):
-    def rem():
-        ret = ovs_command(addr, "del-port", [bridge, port])
-        if ret is not None:
-            raise RuntimeError(ret)
-    try:
-        rem()
-    except Exception as ex:
-        raise RuntimeError(str(ex))
+def recv_pkt_lcy(q, count, port_out):
+    def handle_lcy(pkt):
+        recv_time = time.time()
+        send_time = float(pkt.getlayer(Raw).load)
+        lcy = recv_time - send_time
+        time_lcy.append(lcy)
+
+    time_lcy = []
+    sniff(iface=port_out, prn=handle_lcy, count=int(count))
+    lcy = sum(time_lcy) / len(time_lcy)
+    q.append(lcy)
 
 
-class TrafficGen(object):
-    def __init__(self, num_macs, bridge, loops, gaps, port_int=None, port_out=None, throughput=True):
-        self.num_macs = num_macs
-        self.loops = loops,
-        self.gaps = gaps
-        self.send_time = []
-        self.receive_time = []
-        self.throughput = throughput
-        self.port_in = port_int
-        self.port_out = port_out
+def start_measure(q, count, port_int, port_out, rcv, snd):
+    recv = threading.Thread(target=rcv, args=(q, count, port_out))
+    send = threading.Thread(target=snd, args=(count, port_int))
 
-    def send_pkt_latency(self):
-        pkts = []
-        for _ in range(1, int(self.num_macs)):
-            n = Ether(src=RandMAC(), dst=RandMAC()) / IP(dst=RandIP(), src=RandIP())
-            pkts.append(time.time())
-            sendp(n, iface)
+    recv.start()
+    time.sleep(1)
+    send.start()
+
+    while recv.is_alive():
+        time.sleep(1)
+
+    if send.is_alive():
+        send.join()
 
 
-time_list = []
+def print_result(q):
+   # a = np.array(q)
+    str_list = ['{}'.format(x) for x in q]
+    ret = " ".join(str_list)
+    #total = (np.average(a))
+    print(ret)
+    #print("{} (response/s)".format(str(total)))
 
-for i in range(1, 10001):
-    n = Ether(src=RandMAC(), dst=RandMAC()) / IP(dst=RandIP(), src=RandIP())
-    time
-    sendp(n, iface="link1-in", verbose=False)
+
+if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser(description="traffic benchmarking")
+    parser.add_argument('-l', '--loops', default=1, type=int, help="how many tests will be done")
+    parser.add_argument('-c', '--count-macs', default=1, type=int, help="amount of uniques macs that will be generated")
+    parser.add_argument('-i', '--port-in', type=str, required=True,
+                        help="port where the packet will be sent")
+    parser.add_argument('-o', '--port-out', type=str, required=True,
+                        help="port where the packet will be received")
+    parser.add_argument('-v', '--interval', default=2, type=int, help="interval between loops")
+    parser.add_argument('-m', '--mode', default=1, type=int, required=True,
+                        help="measure mode: 1 (throughput) or 0 (latency)")
+
+    args = parser.parse_args()
+
+    result = []
+    for i in range(0, args.loops):
+        if args.mode:
+            print("Initializing throughput mode")
+            start_measure(q=result, count=args.count_macs, port_int=args.port_in, port_out=args.port_out,
+                          rcv=recv_pkt_thg, snd=send_pkt_thg)
+        else:
+            print("Initializing latency mode")
+            start_measure(q=result, count=args.count_macs, port_int=args.port_in, port_out=args.port_out,
+                          rcv=recv_pkt_lcy, snd=send_pkt_lcy)
+        time.sleep(args.interval)
+
+    print_result(result)
