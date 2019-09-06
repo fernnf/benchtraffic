@@ -7,6 +7,7 @@ from scapy.layers.l2 import Ether
 
 def send_pkt_thg(count, port_in):
     pkt = []
+    print("create throughput buffer")
     for _ in range(0, int(count) + 500):
         p = Ether(src=RandMAC(), dst=RandMAC()) / IP(dst=RandIP(), src=RandIP())
         pkt.append(p)
@@ -14,6 +15,7 @@ def send_pkt_thg(count, port_in):
 
 
 def send_pkt_lcy(count, port_in):
+    print("create latency buffer")
     for _ in range(0, int(count)):
         p = Ether(src=RandMAC(), dst=RandMAC()) / IP(dst=RandIP(), src=RandIP()) / Raw(load=str(time.time()))
         sendp(p, iface=port_in,verbose=False)
@@ -21,8 +23,8 @@ def send_pkt_lcy(count, port_in):
 
 def recv_pkt_thg(q, count, port_out):
     time_thg = []
-    n = sniff(iface=port_out, prn=lambda x: time_thg.append(time.time()), count=int(count))
-    print(n)
+    print("receiving packets")
+    sniff(iface=port_out, prn=lambda x: time_thg.append(time.time()), count=int(count))
     pkts = len(time_thg)
     elapsed = time_thg[pkts - 1] - time_thg[0]
     thg = pkts / elapsed
@@ -37,6 +39,7 @@ def recv_pkt_lcy(q, count, port_out):
         time_lcy.append(lcy)
 
     time_lcy = []
+    print("receiving packets")
     sniff(iface=port_out, prn=handle_lcy, count=int(count))
     lcy = sum(time_lcy) / len(time_lcy)
     q.append(lcy)
@@ -51,7 +54,7 @@ def start_measure(q, count, port_int, port_out, rcv, snd):
     send.start()
 
     while recv.is_alive():
-        time.sleep(1)
+        time.sleep(0.5)
 
     if send.is_alive():
         send.join()
