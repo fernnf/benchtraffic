@@ -135,12 +135,13 @@ def start_measure(q, count, port_int, port_out, rcv, snd):
         send.join()
 
 
-def print_result(q, mode):
+def print_result(q, mode, name, dir):
     m = ("throughput" if mode == 1 else "latency")
     time.sleep(1)
     a = np.array(q)
     total = (np.average(a))
     ret = {}
+    ret.update({"name": name})
     ret.update({"type": m})
     ret.update({"rounds": {}})
     for i in range(0, len(q)):
@@ -151,27 +152,27 @@ def print_result(q, mode):
     import json
     j = json.dumps([ret], indent=4, ensure_ascii=True)
 
+    with open('{}/{}.json'.format(dir,name), 'w') as outfile:
+        json.dump([ret], outfile)
+
     print(j)
-
-
-# print("{} (response/s)".format(str(total)))
 
 
 def write_result(result, name, mode, dir):
     mode = ("throughput" if mode == 1 else "latency")
-
-    with open('{}/{}_{}.csv'.format(dir,name, mode), mode='w') as csv_file:
+    with open('{}/{}_{}.csv'.format(dir, name, mode), mode='w') as csv_file:
         header = ["ROUND", "RESULT"]
         writer = csv.DictWriter(csv_file, fieldnames=header, delimiter=' ')
         writer.writeheader()
         for i in range(0, len(result)):
             writer.writerow({'ROUND': i + 1, 'RESULT': result[i]})
 
+
 def dir_path(path):
     if os.path.isdir(path):
         return path
     else:
-        raise argparse.ArgumentTypeError(f"readable_dir:{path} is not a valid path")
+        os.mkdir(path)
 
 
 if __name__ == '__main__':
@@ -206,4 +207,4 @@ if __name__ == '__main__':
         time.sleep(args.interval)
 
     write_result(result, args.name, args.mode, args.output)
-    print_result(result, args.mode)
+    print_result(result, args.mode, args.name, args.output)
