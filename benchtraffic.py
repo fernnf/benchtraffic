@@ -192,6 +192,7 @@ if __name__ == '__main__':
     parser.add_argument('-t', '--output', type=dir_path,
                         help="output dir to write csv")
 
+
     args = parser.parse_args()
 
     result = []
