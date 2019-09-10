@@ -13,38 +13,30 @@ BRIDGE_DEFAULT = "tswitch0"
 LOCAL = "tcp:127.0.0.1:6640"
 
 
-def set_ovsdb(db_addr=LOCAL, table=[], value=[]):
+def run_command(cmd, args, db_addr=LOCAL):
     ovsdb = vsctl.VSCtl(db_addr)
+    command = vsctl.VSCtlCommand(cmd, args)
+    ovsdb.run_command([command])
+    return command.result
+
+
+def set_ovsdb(db_addr=LOCAL, table=[], value=[]):
     command = "set"
     args = table + value
-    run = vsctl.VSCtlCommand(command, args)
-    try:
-        ovsdb.run_command([run])
-        return run.result
-    except Exception as ex:
-        raise RuntimeError(ex.args[0])
+    return run_command(command, args, db_addr)
 
 
 def get_ovsdb(db_addr=LOCAL, table=[], value=[]):
-    ovsdb = vsctl.VSCtl(db_addr)
     command = "get"
-    value = table + value
-    run = vsctl.VSCtlCommand(command, value)
-    try:
-        ovsdb.run_command([run])
-        return run.result
-    except Exception as ex:
-        raise RuntimeError(ex.args[0])
+    args = table + value
+    return run_command(command, args, db_addr)
 
 
 def add_port(db_addr, name, port_name, ofport=None):
-    ovsdb = vsctl.VSCtl(db_addr)
-
     def adding():
         command = "add-port"
         args = [name, port_name]
-        run = vsctl.VSCtlCommand(command, args)
-        ovsdb.run_command([run])
+        run_command(command, args, db_addr)
 
     def set_ofport():
         table = ["Interface"]
@@ -57,6 +49,14 @@ def add_port(db_addr, name, port_name, ofport=None):
             set_ofport()
     except Exception as ex:
         raise RuntimeError(ex.args[0])
+
+
+def add_vswitch():
+    cmd = "add-br"
+    args = ['vswitch0']
+    ret = run_command(cmd=cmd, args=args, db_addr=LOCAL)[0]
+    if ret is not None:
+        raise RuntimeError(str(ret))
 
 
 def config_link():
@@ -180,10 +180,12 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="traffic benchmarking")
     parser.add_argument('-l', '--loops', default=1, type=int, help="how many tests will be done")
     parser.add_argument('-c', '--count-macs', default=1, type=int, help="amount of uniques macs that will be generated")
-    parser.add_argument('-g', '--config-links', default=False, type=bool,
-                        help='configure links to DUT (Device Under Test)')
-    parser.add_argument('-v', '--interval', default=0, type=int, help="interval between loops")
-    parser.add_argument('-m', '--mode', default=1, type=int, required=True,
+    parser.add_argument('-i', '--port-in', default="dut1", type=str,
+                        help='port to send data')
+    parser.add_argument('-o', '--port-out', default="dut2", type=bool,
+                        help='port to receive data')
+    parser.add_argument('-v', '--interval', default=2, type=int, help="interval between loops")
+    parser.add_argument('-m', '--mode', default=1, type=bool, required=True,
                         help="measure mode: 1 (throughput) or 0 (latency)")
     parser.add_argument('-n', '--name', default=datetime.now(), type=str, required=True,
                         help="name file to write csv")
@@ -194,17 +196,14 @@ if __name__ == '__main__':
 
     result = []
 
-    if args.config_links:
-        config_link()
-
     for i in range(0, args.loops):
         if args.mode:
             # print("Initializing throughput mode")
-            start_measure(q=result, count=args.count_macs, port_int="dut1", port_out="dut2",
+            start_measure(q=result, count=args.count_macs, port_int=args.port_in, port_out=args.port_out,
                           rcv=recv_pkt_thg, snd=send_pkt_thg)
         else:
             # print("Initializing latency mode")
-            start_measure(q=result, count=args.count_macs, port_int="dut1", port_out="dut2",
+            start_measure(q=result, count=args.count_macs, port_int=args.port_in, port_out=args.port_in,
                           rcv=recv_pkt_lcy, snd=send_pkt_lcy)
 
         time.sleep(args.interval)
