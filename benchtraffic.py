@@ -144,7 +144,7 @@ def print_result(q, mode):
     ret.update({"type": m})
     ret.update({"rounds": {}})
     for i in range(0, len(q)):
-        ret["round"].update({"{}".format(i + 1): q[i]})
+        ret["rounds"].update({"{}".format(i + 1): q[i]})
 
     ret.update({"avarage": total})
 
@@ -166,7 +166,6 @@ def write_result(result, name, mode):
         writer.writeheader()
         for i in range(0, len(result)):
             writer.writerow({'ROUND': i + 1, 'RESULT': result[i]})
-
 
 def dir_path(path):
     if os.path.isdir(path):
