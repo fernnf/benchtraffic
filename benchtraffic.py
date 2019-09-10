@@ -185,7 +185,7 @@ if __name__ == '__main__':
     parser.add_argument('-o', '--port-out', default="dut2", type=bool,
                         help='port to receive data')
     parser.add_argument('-v', '--interval', default=2, type=int, help="interval between loops")
-    parser.add_argument('-m', '--mode', default=1, type=bool, required=True,
+    parser.add_argument('-m', '--mode', default=1, type=int, required=True,
                         help="measure mode: 1 (throughput) or 0 (latency)")
     parser.add_argument('-n', '--name', default=datetime.now(), type=str, required=True,
                         help="name file to write csv")
