@@ -189,7 +189,7 @@ if __name__ == '__main__':
                         help="measure mode: 1 (throughput) or 0 (latency)")
     parser.add_argument('-n', '--name', default=datetime.now(), type=str, required=True,
                         help="name file to write csv")
-    parser.add_argument('-o', '--output', type=dir_path,
+    parser.add_argument('-t', '--output', type=dir_path,
                         help="output dir to write csv")
 
     args = parser.parse_args()
