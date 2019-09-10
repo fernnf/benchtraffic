@@ -157,10 +157,10 @@ def print_result(q, mode):
 # print("{} (response/s)".format(str(total)))
 
 
-def write_result(result, name, mode):
+def write_result(result, name, mode, dir):
     mode = ("throughput" if mode == 1 else "latency")
 
-    with open('{}_{}.csv'.format(name, mode), mode='w') as csv_file:
+    with open('{}/{}_{}.csv'.format(dir,name, mode), mode='w') as csv_file:
         header = ["ROUND", "RESULT"]
         writer = csv.DictWriter(csv_file, fieldnames=header, delimiter=' ')
         writer.writeheader()
@@ -205,5 +205,5 @@ if __name__ == '__main__':
 
         time.sleep(args.interval)
 
-    write_result(result, args.name, args.mode)
+    write_result(result, args.name, args.mode, args.output)
     print_result(result, args.mode)
