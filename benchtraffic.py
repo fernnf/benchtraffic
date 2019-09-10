@@ -180,10 +180,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="traffic benchmarking")
     parser.add_argument('-l', '--loops', default=1, type=int, help="how many tests will be done")
     parser.add_argument('-c', '--count-macs', default=1, type=int, help="amount of uniques macs that will be generated")
-    parser.add_argument('-i', '--port-in', default="dut1", type=str,
-                        help='port to send data')
-    parser.add_argument('-o', '--port-out', default="dut2", type=bool,
-                        help='port to receive data')
+    parser.add_argument('-i', '--port-in', default="dut1", type=str, help='port to send data')
+    parser.add_argument('-o', '--port-out', default="dut2", type=str, help='port to receive data')
     parser.add_argument('-v', '--interval', default=2, type=int, help="interval between loops")
     parser.add_argument('-m', '--mode', default=1, type=int, required=True,
                         help="measure mode: 1 (throughput) or 0 (latency)")
@@ -191,7 +189,6 @@ if __name__ == '__main__':
                         help="name file to write csv")
     parser.add_argument('-t', '--output', type=dir_path,
                         help="output dir to write csv")
-
 
     args = parser.parse_args()
 
