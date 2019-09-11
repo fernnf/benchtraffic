@@ -152,7 +152,7 @@ def print_result(q, mode, name, dir):
     import json
     j = json.dumps([ret], indent=4, ensure_ascii=True)
 
-    with open('{}/{}.json'.format(dir,name), 'w') as outfile:
+    with open('{}/{}_{}.json'.format(dir, name, m), 'w') as outfile:
         json.dump([ret], outfile)
 
     print(j)
