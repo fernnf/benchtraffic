@@ -134,29 +134,30 @@ def start_measure(q, count, port_int, port_out, rcv, snd):
         send.join(timeout=5)
 
 
-def print_result(q, mode, name, dir):
-    m = ("throughput" if mode == 1 else "latency")
+def print_result(q, mode, name, out):
+    type = ("throughput" if mode == 1 else "latency")
     time.sleep(1)
     a = np.array(q)
     total = (np.average(a))
     ret = {}
     ret.update({"name": name})
-    ret.update({"type": m})
+    ret.update({"type": type})
     ret.update({"rounds": {}})
     for i in range(0, len(q)):
         ret["rounds"].update({"{}".format(i + 1): q[i]})
 
     ret.update({"avarage": total})
 
-    with open('{}/{}_{}.json'.format(dir, name, m), 'w') as outfile:
+    with open('{o}/{t}_{n}.json'.format(o=out, t=type, n=name), 'w') as outfile:
         json.dump([ret], outfile, indent=4, ensure_ascii=True)
 
-    print([ret])
+    print(str([ret]))
 
 
-def write_result(result, name, mode, dir):
-    mode = ("throughput" if mode == 1 else "latency")
-    with open('{}/{}_{}.csv'.format(dir, name, mode), mode='w') as csv_file:
+def write_result(result, name, mode, out):
+    type = ("throughput" if mode == 1 else "latency")
+
+    with open('{o}/{t}_{n}.csv'.format(o=out, t=type, n=name), mode='w') as csv_file:
         header = ["ROUND", "RESULT"]
         writer = csv.DictWriter(csv_file, fieldnames=header, delimiter=' ')
         writer.writeheader()
@@ -165,10 +166,11 @@ def write_result(result, name, mode, dir):
 
 
 def dir_path(path):
-    if os.path.isdir(path):
-        return path
-    else:
-        os.mkdir(path)
+    if os.path.isfile(path):
+        raise ValueError("this is not a path valid")
+
+    if not os.path.isdir(path):
+        os.makedirs(path)
 
 
 if __name__ == '__main__':
@@ -181,10 +183,8 @@ if __name__ == '__main__':
     parser.add_argument('-v', '--interval', default=2, type=int, help="interval between loops")
     parser.add_argument('-m', '--mode', default=1, type=int, required=True,
                         help="measure mode: 1 (throughput) or 0 (latency)")
-    parser.add_argument('-n', '--name', default=datetime.now(), type=str, required=True,
-                        help="name file to write csv")
-    parser.add_argument('-t', '--output', type=dir_path,
-                        help="output dir to write csv")
+    parser.add_argument('-n', '--name', default=datetime.now(), type=str, required=True, help="name file to write csv")
+    parser.add_argument('-d', '--output', type=dir_path, required=True, help="directory to write files")
 
     args = parser.parse_args()
 
