@@ -1,5 +1,6 @@
 import argparse
 import csv
+import json
 
 import numpy as np
 from pyroute2 import IPRoute
@@ -149,13 +150,10 @@ def print_result(q, mode, name, dir):
 
     ret.update({"avarage": total})
 
-    import json
-    j = json.dumps([ret], indent=4, ensure_ascii=True)
-
     with open('{}/{}_{}.json'.format(dir, name, m), 'w') as outfile:
-        json.dump([ret], outfile)
+        json.dump([ret], outfile, indent=4, ensure_ascii=True)
 
-    print(j)
+    print([ret])
 
 
 def write_result(result, name, mode, dir):
