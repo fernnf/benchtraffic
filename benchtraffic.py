@@ -81,15 +81,14 @@ def config_link():
 
 def send_pkt_thg(count, port_in):
     pkt = []
-    # print("create throughput buffer")
-    for _ in range(0, int(count) + 500):
+    for _ in range(0, int(count) * 2):
         p = Ether(src=RandMAC(), dst=RandMAC()) / IP(dst=RandIP(), src=RandIP())
         pkt.append(p)
+
     sendp(pkt, iface=port_in, verbose=False)
 
 
 def send_pkt_lcy(count, port_in):
-    # print("create latency buffer")
     for _ in range(0, int(count)):
         p = Ether(src=RandMAC(), dst=RandMAC()) / IP(dst=RandIP(), src=RandIP()) / Raw(load=str(time.time()))
         sendp(p, iface=port_in, verbose=False)
@@ -97,7 +96,6 @@ def send_pkt_lcy(count, port_in):
 
 def recv_pkt_thg(q, count, port_out):
     time_thg = []
-    # print("receiving packets")
     sniff(iface=port_out, prn=lambda x: time_thg.append(time.time()), count=int(count))
     pkts = len(time_thg)
     elapsed = time_thg[pkts - 1] - time_thg[0]
@@ -113,7 +111,7 @@ def recv_pkt_lcy(q, count, port_out):
         time_lcy.append(lcy)
 
     time_lcy = []
-    # print("receiving packets")
+
     sniff(iface=port_out, prn=handle_lcy, count=int(count))
     lcy = sum(time_lcy) / len(time_lcy)
     q.append(lcy)
@@ -133,7 +131,7 @@ def start_measure(q, count, port_int, port_out, rcv, snd):
             recv.join(timeout=5)
 
     if send.is_alive():
-        send.join()
+        send.join(timeout=5)
 
 
 def print_result(q, mode, name, dir):
@@ -194,11 +192,11 @@ if __name__ == '__main__':
 
     for i in range(0, args.loops):
         if args.mode:
-            # print("Initializing throughput mode")
+
             start_measure(q=result, count=args.count_macs, port_int=args.port_in, port_out=args.port_out,
                           rcv=recv_pkt_thg, snd=send_pkt_thg)
         else:
-            # print("Initializing latency mode")
+
             start_measure(q=result, count=args.count_macs, port_int=args.port_in, port_out=args.port_in,
                           rcv=recv_pkt_lcy, snd=send_pkt_lcy)
 
