@@ -105,6 +105,8 @@ def dir_path(path):
     if not os.path.isdir(path):
         os.makedirs(path)
 
+    return path
+
 
 if __name__ == '__main__':
 
