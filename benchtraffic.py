@@ -3,80 +3,9 @@ import csv
 import json
 
 import numpy as np
-from pyroute2 import IPRoute
-from ryu.lib.ovs import vsctl
 from scapy.all import *
 from scapy.layers.inet import IP
 from scapy.layers.l2 import Ether
-
-MTU_DEFAULT = 9000
-BRIDGE_DEFAULT = "tswitch0"
-LOCAL = "tcp:127.0.0.1:6640"
-
-
-def run_command(cmd, args, db_addr=LOCAL):
-    ovsdb = vsctl.VSCtl(db_addr)
-    command = vsctl.VSCtlCommand(cmd, args)
-    ovsdb.run_command([command])
-    return command.result
-
-
-def set_ovsdb(db_addr=LOCAL, table=[], value=[]):
-    command = "set"
-    args = table + value
-    return run_command(command, args, db_addr)
-
-
-def get_ovsdb(db_addr=LOCAL, table=[], value=[]):
-    command = "get"
-    args = table + value
-    return run_command(command, args, db_addr)
-
-
-def add_port(db_addr, name, port_name, ofport=None):
-    def adding():
-        command = "add-port"
-        args = [name, port_name]
-        run_command(command, args, db_addr)
-
-    def set_ofport():
-        table = ["Interface"]
-        value = [port_name, "ofport_request={ofport}".format(ofport=ofport)]
-        set_ovsdb(db_addr, table, value)
-
-    try:
-        adding()
-        if ofport is not None:
-            set_ofport()
-    except Exception as ex:
-        raise RuntimeError(ex.args[0])
-
-
-def add_vswitch():
-    cmd = "add-br"
-    args = ['vswitch0']
-    ret = run_command(cmd=cmd, args=args, db_addr=LOCAL)[0]
-    if ret is not None:
-        raise RuntimeError(str(ret))
-
-
-def config_link():
-    for i in range(1, 3):
-        ifname = "dut{}".format(i)
-        peer = "peer{}".format(i)
-        with IPRoute() as ipr:
-            ipr.link("add", ifname=ifname, kind="veth", peer=peer)
-
-            iface1 = ipr.link_lookup(ifname=ifname)[0]
-            iface2 = ipr.link_lookup(ifname=peer)[0]
-
-            ipr.link("set", index=iface1, mtu=MTU_DEFAULT)
-            ipr.link("set", index=iface2, mtu=MTU_DEFAULT)
-
-            ipr.link("set", index=iface1, state="up")
-            ipr.link("set", index=iface2, state="up")
-
-        add_port(LOCAL, BRIDGE_DEFAULT, peer, ofport=i)
 
 
 def send_pkt_thg(count, port_in):
@@ -129,6 +58,7 @@ def start_measure(q, count, port_int, port_out, rcv, snd):
         time.sleep(0.5)
         if not send.is_alive():
             recv.join(timeout=5)
+            time.sleep(6)
 
     if send.is_alive():
         send.join(timeout=5)
