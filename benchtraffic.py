@@ -66,7 +66,6 @@ def start_measure(q, count, port_int, port_out, rcv, snd):
 
 def print_result(q, mode, name, out):
     type = ("throughput" if mode == 1 else "latency")
-    time.sleep(1)
     a = np.array(q)
     total = (np.average(a))
     ret = {}
@@ -86,13 +85,17 @@ def print_result(q, mode, name, out):
 
 def write_result(result, name, mode, out):
     type = ("throughput" if mode == 1 else "latency")
-
+    a = np.array(result)
+    total = (np.average(a))
     with open('{o}/{t}_{n}.csv'.format(o=out, t=type, n=name), mode='w') as csv_file:
         header = ["ROUND", "RESULT"]
         writer = csv.DictWriter(csv_file, fieldnames=header, delimiter=' ')
         writer.writeheader()
         for i in range(0, len(result)):
             writer.writerow({'ROUND': i + 1, 'RESULT': result[i]})
+
+        writer.writerow({'ROUND': " ", 'RESULT': ""})
+        writer.writerow({'ROUND': "AVG", 'RESULT': total})
 
 
 def dir_path(path):
