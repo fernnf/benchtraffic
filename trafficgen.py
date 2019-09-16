@@ -7,7 +7,7 @@ from multiprocessing import Manager
 
 import coloredlogs
 from scapy.all import *
-from scapy.layers.inet import IP
+from scapy.layers.inet import IP, ICMP, IPOption
 from scapy.layers.l2 import Ether
 
 logger = logging.getLogger(__name__)
@@ -101,10 +101,13 @@ class GenTrafficLatency(th.Thread):
         temp = []
 
         def reg_time(pkt):
-            recv_time = time.time()
-            send_time = float(pkt.getlayer(Raw).load)
-            trip_time = recv_time - send_time
-            temp.append(trip_time)
+            try:
+                recv_time = time.time()
+                send_time = str(pkt.getlayer(Raw).load, encoding='utf-8')
+                trip_time = recv_time - float(send_time)
+                temp.append(trip_time)
+            except Exception as ex:
+                logger.error(str(ex))
 
         sn = sniff(iface=p, prn=reg_time, count=m)
         s.clear()
@@ -112,14 +115,14 @@ class GenTrafficLatency(th.Thread):
         r.append(latency)
         logger.info("latency: {} secs {}".format(latency, sn))
 
-    def _make_sendp_latency(self, s, p):
-        logger.info("starting sendp")
-        while s.is_set():
-            pkt = Ether(src=RandMAC(), dst=RandMAC()) / IP(dst=RandIP(), src=RandIP()) / Raw(load=str(time.time()))
+    def _make_sendp_latency(self, s, p, m):
+        for _ in range(0, m):
+            data = bytes(str(time.time()), encoding="utf-8")
+            pkt = Ether(src=RandMAC(), dst=RandMAC()) / IP(dst=RandIP(), src=RandIP()) / "{}".format(time.time())
             sendp(pkt, iface=p, verbose=False)
 
     def _make_sender_latency(self):
-        self.sender = mp.Process(target=self._make_sendp_latency, args=(self.signal_rcv, self.ports[0]))
+        self.sender = mp.Process(target=self._make_sendp_latency, args=(self.signal_rcv, self.ports[0], self.macs))
         self.sender.name = "sendp"
 
     def _make_receiver_latency(self):
