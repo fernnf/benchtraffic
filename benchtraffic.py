@@ -94,7 +94,7 @@ def write_result(result, name, mode, out):
         for i in range(0, len(result)):
             writer.writerow({'ROUND': i + 1, 'RESULT': result[i]})
 
-        writer.writerow({'ROUND': " ", 'RESULT': ""})
+        writer.writerow({'ROUND': None, 'RESULT': None})
         writer.writerow({'ROUND': "AVG", 'RESULT': total})
 
 
@@ -106,6 +106,8 @@ def dir_path(path):
         os.makedirs(path)
 
     return path
+
+
 
 
 if __name__ == '__main__':
