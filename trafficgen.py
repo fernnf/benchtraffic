@@ -222,8 +222,7 @@ if __name__ == '__main__':
                         help="measure mode: 1 (throughput) or 0 (latency)")
     parser.add_argument('-n', '--name', default=datetime.now(), type=str, required=True, help="name file to write csv")
     parser.add_argument('-d', '--output', type=dir_path, required=True, help="directory to write files")
-    parser.add_argument('-v', '--vlan', default=1, type=int, required=True,
-                        help="measure mode: 1 (throughput) or 0 (latency)")
+    parser.add_argument('-a', '--vlan', default=1, type=int, help="measure mode: 1 (throughput) or 0 (latency)")
 
     args = parser.parse_args()
 
