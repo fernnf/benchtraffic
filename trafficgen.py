@@ -15,21 +15,21 @@ def make_packet(vlan=False, timestap=False):
     etype_vlan = 0x8100
 
     if vlan:
-        ethernet = Ether(scr=RandMAC, dst=ETHER_BROADCAST, type=etype_ip)
+        ethernet = Ether(src=RandMAC, dst=ETHER_BROADCAST, type=etype_ip)
     else:
-        ethernet = Ether(scr=RandMAC, dst=ETHER_BROADCAST, type=etype_vlan) / Dot1Q(vlan=20)
+        ethernet = Ether(src=RandMAC, dst=ETHER_BROADCAST, type=etype_vlan) / Dot1Q(vlan=20)
 
     if timestap:
-        ip = IP(scr=RandIP, dst=RandIP) / Raw(load="{}".format(time.time()).encode(encoding="utf8"))
+        ip = IP(src=RandIP, dst=RandIP) / Raw(load="{}".format(time.time()).encode(encoding="utf8"))
     else:
-        ip = IP(scr=RandIP, dst=RandIP) / Raw()
+        ip = IP(src=RandIP, dst=RandIP) / Raw()
     p = ethernet / ip
 
     return p
 
 
 class GenTrafficThroughput(object):
-    def __init__(self, macs, duts, type="throughput", vlan=False):
+    def __init__(self, macs, duts, type="throughput", vlan=True):
         self.logger = logging.getLogger(__name__)
         self.signal_rcv = Event()
         self.macs = macs
@@ -102,12 +102,13 @@ class GenTrafficThroughput(object):
 
 class GenTrafficLatency(object):
 
-    def __init__(self, macs, duts, type='latency'):
+    def __init__(self, macs, duts, type='latency', vlan=True):
         self.macs = macs
         self.signal_rcv = Event()
         self.ports = duts
         self.result = []
         self.type = type
+        self.vlan = vlan
 
     def _make_sniff_latency(self, r, s, p, m):
         logger.info("starting sniff")
@@ -131,7 +132,7 @@ class GenTrafficLatency(object):
 
     def _make_sendp_latency(self, s, p, m):
         for _ in range(0, m):
-            sendp(make_packet(vlan=1, timestap=True), iface=p, verbose=False)
+            sendp(make_packet(vlan=self.vlan, timestap=True), iface=p, verbose=False)
 
     def _make_sender_latency(self):
         self.sender = Thread(target=self._make_sendp_latency, args=(self.signal_rcv, self.ports[0], self.macs))
@@ -221,6 +222,8 @@ if __name__ == '__main__':
                         help="measure mode: 1 (throughput) or 0 (latency)")
     parser.add_argument('-n', '--name', default=datetime.now(), type=str, required=True, help="name file to write csv")
     parser.add_argument('-d', '--output', type=dir_path, required=True, help="directory to write files")
+    parser.add_argument('-v', '--vlan', default=1, type=int, required=True,
+                        help="measure mode: 1 (throughput) or 0 (latency)")
 
     args = parser.parse_args()
 
@@ -228,7 +231,7 @@ if __name__ == '__main__':
 
     if args.mode:
         for i in range(0, args.loops):
-            thg = GenTrafficThroughput(macs=args.count_macs, duts=(args.port_in, args.port_out))
+            thg = GenTrafficThroughput(macs=args.count_macs, duts=(args.port_in, args.port_out), vlan=args.vlan)
             logger.info("{} loop {}".format(thg.get_type(), i + 1))
             thg.run()
             while thg.rcv_is_live():
@@ -238,7 +241,7 @@ if __name__ == '__main__':
             time.sleep(args.interval)
     elif args.mode == 0:
         for i in range(0, args.loops):
-            lty = GenTrafficLatency(macs=args.count_macs, duts=(args.port_in, args.port_out))
+            lty = GenTrafficLatency(macs=args.count_macs, duts=(args.port_in, args.port_out),vlan=args.vlan)
             logger.info("{} loop {}".format(lty.get_type(), i + 1))
             lty.run()
             while lty.rcv_is_live():
