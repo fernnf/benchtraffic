@@ -1,15 +1,15 @@
 import argparse
 import csv
 import json
-import time
+
 import coloredlogs
 from scapy.all import *
-from scapy.layers.inet import IP, ICMP
+from scapy.layers.inet import IP
 from scapy.layers.l2 import Ether, Dot1Q
 
 logger = logging.getLogger(__name__)
 
-
+"""
 def make_packet(vlan=False, timestap=False):
     etype_ip = 0x0800
     etype_vlan = 0x8100
@@ -26,7 +26,7 @@ def make_packet(vlan=False, timestap=False):
     p = ethernet / ip
 
     return p
-
+"""
 
 class GenTrafficThroughput(object):
     def __init__(self, macs, duts, type="throughput", vlan=True):
@@ -61,7 +61,8 @@ class GenTrafficThroughput(object):
         def make_pkt():
             pkt = []
             for _ in range(0, 1000):
-                pkt.append(make_packet(vlan=self.vlan))
+                t = Ether(src=RandMAC, dst=ETHER_BROADCAST ) / Dot1Q(vlan=20) / IP(src=RandIP, dst=RandIP)
+                pkt.append(t)
             return pkt.copy()
 
         while s.is_set():
@@ -132,7 +133,11 @@ class GenTrafficLatency(object):
 
     def _make_sendp_latency(self, s, p, m):
         for _ in range(0, m):
-            sendp(make_packet(vlan=self.vlan, timestap=True), iface=p, verbose=False)
+            e = Ether(src=RandMAC, dst=ETHER_BROADCAST) / Dot1Q(vlan=20)
+            i = IP(src=RandIP,dst=RandIP)
+            d = Raw(load="{}".format(time.time()).encode(encoding="utf8"))
+            pkt = e / i / d
+            sendp(pkt, iface=p, verbose=False)
 
     def _make_sender_latency(self):
         self.sender = Thread(target=self._make_sendp_latency, args=(self.signal_rcv, self.ports[0], self.macs))
@@ -240,7 +245,7 @@ if __name__ == '__main__':
             time.sleep(args.interval)
     elif args.mode == 0:
         for i in range(0, args.loops):
-            lty = GenTrafficLatency(macs=args.count_macs, duts=(args.port_in, args.port_out),vlan=args.vlan)
+            lty = GenTrafficLatency(macs=args.count_macs, duts=(args.port_in, args.port_out), vlan=args.vlan)
             logger.info("{} loop {}".format(lty.get_type(), i + 1))
             lty.run()
             while lty.rcv_is_live():
