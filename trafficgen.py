@@ -229,6 +229,7 @@ if __name__ == '__main__':
             else:
                 result.append(lty.get_result())
             time.sleep(args.interval)
+
     else:
         logger.error("mode not found")
         parser.print_help()
