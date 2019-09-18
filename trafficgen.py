@@ -73,10 +73,8 @@ class GenTrafficThroughput(object):
         else:
             self.sender.terminate()
             self.sender.join(timeout=2)
-            self.sender.kill()
             self.receiver.terminate()
             self.receiver.join(timeout=2)
-            self.receiver.kill()
 
     def get_result(self):
         return self.result[0]
