@@ -2,20 +2,18 @@ import argparse
 import csv
 import json
 import multiprocessing as mp
-import threading as th
 from multiprocessing import Manager
 
 import coloredlogs
 from scapy.all import *
-from scapy.layers.inet import IP, ICMP, IPOption
+from scapy.layers.inet import IP
 from scapy.layers.l2 import Ether
 
 logger = logging.getLogger(__name__)
 
 
-class GenTrafficThroughput(th.Thread):
+class GenTrafficThroughput(object):
     def __init__(self, macs, duts, type="throughput"):
-        th.Thread.__init__(self)
         self.logger = logging.getLogger(__name__)
         self.signal_rcv = Manager().Event()
         self.macs = macs
@@ -75,8 +73,10 @@ class GenTrafficThroughput(th.Thread):
         else:
             self.sender.terminate()
             self.sender.join(timeout=2)
+            self.sender.kill()
             self.receiver.terminate()
             self.receiver.join(timeout=2)
+            self.receiver.kill()
 
     def get_result(self):
         return self.result[0]
@@ -84,11 +84,13 @@ class GenTrafficThroughput(th.Thread):
     def get_type(self):
         return self.type
 
+    def rcv_is_live(self):
+        return self.receiver.is_alive()
 
-class GenTrafficLatency(th.Thread):
+
+class GenTrafficLatency(object):
 
     def __init__(self, macs, duts, type='latency'):
-        th.Thread.__init__(self)
         self.macs = macs
         self.signal_rcv = Manager().Event()
         self.ports = duts
@@ -151,6 +153,9 @@ class GenTrafficLatency(th.Thread):
 
     def get_type(self):
         return self.type
+
+    def rcv_is_live(self):
+        return self.receiver.is_alive()
 
 
 def dir_path(path):
@@ -217,23 +222,21 @@ if __name__ == '__main__':
         for i in range(0, args.loops):
             thg = GenTrafficThroughput(macs=args.count_macs, duts=(args.port_in, args.port_out))
             logger.info("{} loop {}".format(thg.get_type(), i + 1))
-            thg.start()
-            while thg.is_alive():
+            thg.run()
+            while thg.rcv_is_live():
                 pass
             else:
                 result.append(thg.get_result())
-            thg.join()
             time.sleep(args.interval)
     elif args.mode == 0:
         for i in range(0, args.loops):
             lty = GenTrafficLatency(macs=args.count_macs, duts=(args.port_in, args.port_out))
             logger.info("{} loop {}".format(lty.get_type(), i + 1))
-            lty.start()
-            while lty.is_alive():
+            lty.run()
+            while lty.rcv_is_live():
                 pass
             else:
                 result.append(lty.get_result())
-            lty.join()
             time.sleep(args.interval)
     else:
         logger.error("mode not found")
