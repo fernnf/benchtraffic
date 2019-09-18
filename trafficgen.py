@@ -1,23 +1,42 @@
 import argparse
 import csv
 import json
-
+import time
 import coloredlogs
 from scapy.all import *
-from scapy.layers.inet import IP
-from scapy.layers.l2 import Ether
+from scapy.layers.inet import IP, ICMP
+from scapy.layers.l2 import Ether, Dot1Q
 
 logger = logging.getLogger(__name__)
 
 
+def make_packet(vlan=False, timestap=False):
+    etype_ip = 0x0800
+    etype_vlan = 0x8100
+
+    if vlan:
+        ethernet = Ether(scr=RandMAC, dst=ETHER_BROADCAST, type=etype_ip)
+    else:
+        ethernet = Ether(scr=RandMAC, dst=ETHER_BROADCAST, type=etype_vlan) / Dot1Q(vlan=20)
+
+    if timestap:
+        ip = IP(scr=RandIP, dst=RandIP) / Raw(load="{}".format(time.time()).encode(encoding="utf8"))
+    else:
+        ip = IP(scr=RandIP, dst=RandIP) / Raw()
+    p = ethernet / ip
+
+    return p
+
+
 class GenTrafficThroughput(object):
-    def __init__(self, macs, duts, type="throughput"):
+    def __init__(self, macs, duts, type="throughput", vlan=False):
         self.logger = logging.getLogger(__name__)
         self.signal_rcv = Event()
         self.macs = macs
         self.ports = duts
         self.result = []
         self.type = type
+        self.vlan = vlan
 
     def _make_sniff_throughput(self, r, s, p, m):
         logger.info("starting sniff")
@@ -41,9 +60,8 @@ class GenTrafficThroughput(object):
 
         def make_pkt():
             pkt = []
-            for _ in range(0, m + 5000):
-                p = Ether(src=RandMAC(), dst=RandMAC()) / IP(dst=RandIP(), src=RandIP())
-                pkt.append(p)
+            for _ in range(0, 1000):
+                pkt.append(make_packet(vlan=self.vlan))
             return pkt.copy()
 
         while s.is_set():
@@ -113,8 +131,7 @@ class GenTrafficLatency(object):
 
     def _make_sendp_latency(self, s, p, m):
         for _ in range(0, m):
-            pkt = Ether(src=RandMAC(), dst=RandMAC()) / IP(dst=RandIP(), src=RandIP()) / "{}".format(time.time())
-            sendp(pkt, iface=p, verbose=False)
+            sendp(make_packet(vlan=1, timestap=True), iface=p, verbose=False)
 
     def _make_sender_latency(self):
         self.sender = Thread(target=self._make_sendp_latency, args=(self.signal_rcv, self.ports[0], self.macs))
