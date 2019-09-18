@@ -1,8 +1,6 @@
 import argparse
 import csv
 import json
-import multiprocessing as mp
-from multiprocessing import Manager
 
 import coloredlogs
 from scapy.all import *
@@ -15,10 +13,10 @@ logger = logging.getLogger(__name__)
 class GenTrafficThroughput(object):
     def __init__(self, macs, duts, type="throughput"):
         self.logger = logging.getLogger(__name__)
-        self.signal_rcv = Manager().Event()
+        self.signal_rcv = Event()
         self.macs = macs
         self.ports = duts
-        self.result = Manager().list()
+        self.result = []
         self.type = type
 
     def _make_sniff_throughput(self, r, s, p, m):
@@ -52,12 +50,12 @@ class GenTrafficThroughput(object):
             sendp(make_pkt(), iface=p, verbose=False)
 
     def _make_sender_throughput(self):
-        self.sender = mp.Process(target=self._make_sendp_throughput, args=(self.signal_rcv, self.ports[0], self.macs))
+        self.sender = Thread(target=self._make_sendp_throughput, args=(self.signal_rcv, self.ports[0], self.macs))
         self.sender.name = "sendp"
 
     def _make_receiver_througput(self):
-        self.receiver = mp.Process(target=self._make_sniff_throughput,
-                                   args=(self.result, self.signal_rcv, self.ports[1], self.macs))
+        self.receiver = Thread(target=self._make_sniff_throughput,
+                               args=(self.result, self.signal_rcv, self.ports[1], self.macs))
         self.receiver.name = "sniff"
         self.signal_rcv.set()
 
@@ -71,9 +69,7 @@ class GenTrafficThroughput(object):
         while self.signal_rcv.is_set():
             time.sleep(1)
         else:
-            self.sender.terminate()
             self.sender.join(timeout=2)
-            self.receiver.terminate()
             self.receiver.join(timeout=2)
 
     def get_result(self):
@@ -90,9 +86,9 @@ class GenTrafficLatency(object):
 
     def __init__(self, macs, duts, type='latency'):
         self.macs = macs
-        self.signal_rcv = Manager().Event()
+        self.signal_rcv = Event()
         self.ports = duts
-        self.result = Manager().list()
+        self.result = []
         self.type = type
 
     def _make_sniff_latency(self, r, s, p, m):
@@ -112,22 +108,21 @@ class GenTrafficLatency(object):
         sn = sniff(iface=p, prn=reg_time, count=m)
         s.clear()
         latency = (sum(temp) / len(temp))
-        r.append(latency)
+        r += latency
         logger.info("latency: {} secs {}".format(latency, sn))
 
     def _make_sendp_latency(self, s, p, m):
         for _ in range(0, m):
-            data = bytes(str(time.time()), encoding="utf-8")
             pkt = Ether(src=RandMAC(), dst=RandMAC()) / IP(dst=RandIP(), src=RandIP()) / "{}".format(time.time())
             sendp(pkt, iface=p, verbose=False)
 
     def _make_sender_latency(self):
-        self.sender = mp.Process(target=self._make_sendp_latency, args=(self.signal_rcv, self.ports[0], self.macs))
+        self.sender = Thread(target=self._make_sendp_latency, args=(self.signal_rcv, self.ports[0], self.macs))
         self.sender.name = "sendp"
 
     def _make_receiver_latency(self):
-        self.receiver = mp.Process(target=self._make_sniff_latency,
-                                   args=(self.result, self.signal_rcv, self.ports[1], self.macs))
+        self.receiver = Thread(target=self._make_sniff_latency,
+                               args=(self.result, self.signal_rcv, self.ports[1], self.macs))
         self.receiver.name = "sniff"
         self.signal_rcv.set()
 
@@ -141,9 +136,7 @@ class GenTrafficLatency(object):
         while self.signal_rcv.is_set():
             time.sleep(1)
         else:
-            self.sender.terminate()
             self.sender.join(timeout=2)
-            self.receiver.terminate()
             self.receiver.join(timeout=2)
 
     def get_result(self):
