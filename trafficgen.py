@@ -28,6 +28,7 @@ def make_packet(vlan=False, timestap=False):
     return p
 """
 
+
 class GenTrafficThroughput(object):
     def __init__(self, macs, duts, type="throughput"):
         self.logger = logging.getLogger(__name__)
@@ -59,11 +60,10 @@ class GenTrafficThroughput(object):
 
         def make_pkt():
             pkt = []
-            for _ in range(0, 1000):
+            for _ in range(0, int(m)):
                 t = Ether(src=RandMAC(), dst=RandMAC(), type=0x8100) / Dot1Q(vlan=20) / IP(dst=RandIP(), src=RandIP())
                 pkt.append(t)
             return pkt.copy()
-
 
         while s.is_set():
             sendp(make_pkt(), iface=p, verbose=False)
@@ -134,7 +134,7 @@ class GenTrafficLatency(object):
     def _make_sendp_latency(self, s, p, m):
         for _ in range(0, m):
             e = Ether(src=RandMAC, dst=ETHER_BROADCAST) / Dot1Q(vlan=20)
-            i = IP(src=RandIP,dst=RandIP)
+            i = IP(src=RandIP, dst=RandIP)
             d = Raw(load="{}".format(time.time()).encode(encoding="utf8"))
             pkt = e / i / d
             sendp(pkt, iface=p, verbose=False)
