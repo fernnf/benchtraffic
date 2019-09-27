@@ -30,14 +30,15 @@ def make_packet(vlan=False, timestap=False):
 
 
 class GenTrafficThroughput(object):
-    def __init__(self, macs, duts, addr, type="throughput"):
+    def __init__(self, macs, duts, l3addr, l2addr, type="throughput"):
         self.logger = logging.getLogger(__name__)
         self.signal_rcv = Event()
         self.macs = macs
         self.ports = duts
         self.result = []
         self.type = type
-        self.addr = addr
+        self.l3addr = l3addr
+        self.l2addr = l2addr
 
     def _make_sniff_throughput(self, r, s, p, m):
         logger.info("starting sniff")
@@ -56,18 +57,18 @@ class GenTrafficThroughput(object):
         logger.info("{} response/sec  {}".format(throughput, sn))
         r.append(throughput)
 
-    def _make_sendp_throughput(self, s, p, m, a):
+    def _make_sendp_throughput(self, s, p, m, a, c):
         logger.info("starting sendp")
 
         def make_pkt():
             pkt = []
             for _ in range(0, 100):
-                eth = Ether(src=RandMAC(), dst=ETHER_BROADCAST, type=0x8100)
+                eth = Ether(src=RandMAC(c), dst=RandMAC(), type=0x8100)
                 vlan = Dot1Q(vlan=20)
                 ip = IP(dst=RandIP(), src=RandIP(a))
                 udp = UDP(dport=80)
-                p = eth / vlan / ip / udp
-                pkt.append(p)
+                f = eth / vlan / ip / udp
+                pkt.append(f)
             return pkt.copy()
 
         while s.is_set():
@@ -75,7 +76,7 @@ class GenTrafficThroughput(object):
 
     def _make_sender_throughput(self):
         self.sender = Thread(target=self._make_sendp_throughput,
-                             args=(self.signal_rcv, self.ports[0], self.macs, self.addr))
+                             args=(self.signal_rcv, self.ports[0], self.macs, self.l3addr, self.l2addr))
         self.sender.name = "sendp"
 
     def _make_receiver_througput(self):
@@ -109,14 +110,14 @@ class GenTrafficThroughput(object):
 
 class GenTrafficLatency(object):
 
-    def __init__(self, macs, duts, addr, type='latency', vlan=True):
+    def __init__(self, macs, duts, l3addr, type='latency', vlan=True):
         self.macs = macs
         self.signal_rcv = Event()
         self.ports = duts
         self.result = []
         self.type = type
         self.vlan = vlan
-        self.addr = addr
+        self.l3addr = l3addr
 
     def _make_sniff_latency(self, r, s, p, m):
         logger.info("starting sniff")
@@ -148,7 +149,7 @@ class GenTrafficLatency(object):
 
     def _make_sender_latency(self):
         self.sender = Thread(target=self._make_sendp_latency,
-                             args=(self.signal_rcv, self.ports[0], self.macs, self.addr))
+                             args=(self.signal_rcv, self.ports[0], self.macs, self.l3addr))
         self.sender.name = "sendp"
 
     def _make_receiver_latency(self):
@@ -236,13 +237,15 @@ if __name__ == '__main__':
     parser.add_argument('-n', '--name', default=datetime.now(), type=str, required=True, help="name file to write csv")
     parser.add_argument('-d', '--output', type=dir_path, required=True, help="directory to write files")
     parser.add_argument('-a', '--l3-address', default="0.0.0.0/0", type=str, help='port to receive data')
+    parser.add_argument('-p', '--l2-address', default="00:00:00:00:00:01", type=str, help='port to receive data')
     args = parser.parse_args()
 
     result = []
 
     if args.mode:
         for i in range(0, args.loops):
-            thg = GenTrafficThroughput(macs=args.count_macs, duts=(args.port_in, args.port_out), addr=args.l3_address)
+            thg = GenTrafficThroughput(macs=args.count_macs, duts=(args.port_in, args.port_out), l3addr=args.l3_address,
+                                       l2addr=args.l2_address)
             logger.info("{} loop {}".format(thg.get_type(), i + 1))
             thg.run()
             while thg.rcv_is_live():
@@ -252,7 +255,7 @@ if __name__ == '__main__':
             time.sleep(args.interval)
     elif args.mode == 0:
         for i in range(0, args.loops):
-            lty = GenTrafficLatency(macs=args.count_macs, duts=(args.port_in, args.port_out), addr=args.l3_address)
+            lty = GenTrafficLatency(macs=args.count_macs, duts=(args.port_in, args.port_out), l3addr=args.l3_address)
             logger.info("{} loop {}".format(lty.get_type(), i + 1))
             lty.run()
             while lty.rcv_is_live():
