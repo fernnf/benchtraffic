@@ -70,7 +70,8 @@ class GenTrafficThroughput(object):
             sendp(make_pkt(), iface=p, verbose=False)
 
     def _make_sender_throughput(self):
-        self.sender = Thread(target=self._make_sendp_throughput, args=(self.signal_rcv, self.ports[0], self.macs))
+        self.sender = Thread(target=self._make_sendp_throughput,
+                             args=(self.signal_rcv, self.ports[0], self.macs, self.addr))
         self.sender.name = "sendp"
 
     def _make_receiver_througput(self):
@@ -142,7 +143,8 @@ class GenTrafficLatency(object):
             sendp(pkt, iface=p, verbose=False)
 
     def _make_sender_latency(self):
-        self.sender = Thread(target=self._make_sendp_latency, args=(self.signal_rcv, self.ports[0], self.macs))
+        self.sender = Thread(target=self._make_sendp_latency,
+                             args=(self.signal_rcv, self.ports[0], self.macs, self.addr))
         self.sender.name = "sendp"
 
     def _make_receiver_latency(self):
