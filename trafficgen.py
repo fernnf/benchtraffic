@@ -4,7 +4,7 @@ import json
 
 import coloredlogs
 from scapy.all import *
-from scapy.layers.inet import IP
+from scapy.layers.inet import IP, UDP
 from scapy.layers.l2 import Ether, Dot1Q
 
 logger = logging.getLogger(__name__)
@@ -61,9 +61,13 @@ class GenTrafficThroughput(object):
 
         def make_pkt():
             pkt = []
-            for _ in range(0, 10000):
-                t = Ether(src=RandMAC(), dst=RandMAC(), type=0x8100) / Dot1Q(vlan=20) / IP(dst=RandIP(), src=RandIP(a))
-                pkt.append(t)
+            for _ in range(0, 100):
+                eth = Ether(src=RandMAC(), dst=ETHER_BROADCAST, type=0x8100)
+                vlan = Dot1Q(vlan=20)
+                ip = IP(dst=RandIP(), src=RandIP(a))
+                udp = UDP(dport=80)
+                p = eth / vlan / ip / udp
+                pkt.append(p)
             return pkt.copy()
 
         while s.is_set():
