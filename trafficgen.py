@@ -110,7 +110,7 @@ class GenTrafficThroughput(object):
 
 class GenTrafficLatency(object):
 
-    def __init__(self, macs, duts, l3addr, type='latency', vlan=True):
+    def __init__(self, macs, duts, l3addr, l2addr, type='latency', vlan=True):
         self.macs = macs
         self.signal_rcv = Event()
         self.ports = duts
@@ -118,6 +118,7 @@ class GenTrafficLatency(object):
         self.type = type
         self.vlan = vlan
         self.l3addr = l3addr
+        self.l2addr = l2addr
 
     def _make_sniff_latency(self, r, s, p, m):
         logger.info("starting sniff")
@@ -129,6 +130,7 @@ class GenTrafficLatency(object):
                 recv_time = time.time()
                 send_time = str(pkt.getlayer(Raw).load, encoding='utf-8')
                 trip_time = recv_time - float(send_time)
+                logger.info(trip_time)
                 temp.append(trip_time)
             except Exception as ex:
                 logger.error(str(ex))
@@ -136,20 +138,21 @@ class GenTrafficLatency(object):
         sn = sniff(iface=p, prn=reg_time, count=m)
         s.clear()
         latency = (sum(temp) / len(temp))
-        r += latency
+        r.append(latency)
         logger.info("latency: {} secs {}".format(latency, sn))
 
-    def _make_sendp_latency(self, s, p, m, a):
-        for _ in range(0, m):
-            e = Ether(src=RandMAC(), dst=RandMAC()) / Dot1Q(vlan=20)
-            i = IP(src=RandIP(), dst=RandIP(a))
+    def _make_sendp_latency(self, s, p, m, a, c):
+        logger.info("starting sendp")
+        while s.is_set():
+            e = Ether(src=RandMAC(c), dst=RandMAC()) / Dot1Q(vlan=20)
+            i = IP(src=RandIP(a), dst=RandIP())
             d = Raw(load="{}".format(time.time()).encode(encoding="utf8"))
             pkt = e / i / d
             sendp(pkt, iface=p, verbose=False)
 
     def _make_sender_latency(self):
         self.sender = Thread(target=self._make_sendp_latency,
-                             args=(self.signal_rcv, self.ports[0], self.macs, self.l3addr))
+                             args=(self.signal_rcv, self.ports[0], self.macs, self.l3addr, self.l2addr))
         self.sender.name = "sendp"
 
     def _make_receiver_latency(self):
@@ -237,7 +240,7 @@ if __name__ == '__main__':
     parser.add_argument('-n', '--name', default=datetime.now(), type=str, required=True, help="name file to write csv")
     parser.add_argument('-d', '--output', type=dir_path, required=True, help="directory to write files")
     parser.add_argument('-a', '--l3-address', default="0.0.0.0/0", type=str, help='port to receive data')
-    parser.add_argument('-p', '--l2-address', default="00:00:00:00:00:01", type=str, help='port to receive data')
+    parser.add_argument('-p', '--l2-address', default="*", type=str, help='port to receive data')
     args = parser.parse_args()
 
     result = []
@@ -255,7 +258,8 @@ if __name__ == '__main__':
             time.sleep(args.interval)
     elif args.mode == 0:
         for i in range(0, args.loops):
-            lty = GenTrafficLatency(macs=args.count_macs, duts=(args.port_in, args.port_out), l3addr=args.l3_address)
+            lty = GenTrafficLatency(macs=args.count_macs, duts=(args.port_in, args.port_out), l3addr=args.l3_address,
+                                    l2addr=args.l2_address)
             logger.info("{} loop {}".format(lty.get_type(), i + 1))
             lty.run()
             while lty.rcv_is_live():
