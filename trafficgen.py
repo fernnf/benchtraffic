@@ -63,11 +63,13 @@ class GenTrafficThroughput(object):
         def make_pkt():
             pkt = []
             for _ in range(0, 100):
-                eth = Ether(src=RandMAC(c), dst=RandMAC(), type=0x8100)
-                vlan = Dot1Q(vlan=20)
+                #eth = Ether(src=RandMAC(c), dst=RandMAC(), type=0x8100)
+                eth = Ether(src=RandMAC(c), dst=RandMAC())
+                #vlan = Dot1Q(vlan=20)
                 ip = IP(dst=RandIP(), src=RandIP(a))
                 udp = UDP(dport=80)
-                f = eth / vlan / ip / udp
+                #f = eth / vlan / ip / udp
+                f = eth / ip / udp
                 pkt.append(f)
             return pkt.copy()
 
