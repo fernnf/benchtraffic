@@ -69,7 +69,6 @@ class GenTrafficThroughput(object):
                 pkt.append(f)
             return pkt.copy()
 
-
         while s.is_set():
             sendp(make_pkt(), iface=p, verbose=False)
 
